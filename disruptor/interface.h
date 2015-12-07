@@ -28,6 +28,7 @@
 
 #include <climits>
 #include <vector>
+#include <chrono>
 
 #include "disruptor/sequence.h"
 #include "disruptor/batch_descriptor.h"
@@ -101,7 +102,7 @@ class SequenceBarrierInterface {
     // @throws AlertException if a status change has occurred for the
     // Disruptor.
     virtual int64_t WaitFor(const int64_t& sequence,
-                            const int64_t& timeout_micro) = 0;
+                            const std::chrono::system_clock::duration& timeout) = 0;
 
     // Delegate a call to the {@link Sequencer#getCursor()}
     //
@@ -259,7 +260,7 @@ class WaitStrategyInterface {
                             const Sequence& cursor,
                             const SequenceBarrierInterface& barrier,
                             const int64_t & sequence,
-                            const int64_t & timeout_micros) = 0;
+                            const std::chrono::system_clock::duration & timeout_micros) = 0;
 
     // Signal those waiting that the cursor has advanced.
     virtual void SignalAllWhenBlocking() = 0;

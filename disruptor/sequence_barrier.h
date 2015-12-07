@@ -51,9 +51,9 @@ class ProcessingSequenceBarrier : SequenceBarrierInterface {
     }
 
     virtual int64_t WaitFor(const int64_t& sequence,
-                            const int64_t& timeout_micros) {
+                            const std::chrono::system_clock::duration& timeout) {
         return wait_strategy_->WaitFor(dependent_sequences_, *cursor_, *this,
-                                       sequence, timeout_micros);
+                                       sequence, timeout);
     }
 
     virtual int64_t GetCursor() const {

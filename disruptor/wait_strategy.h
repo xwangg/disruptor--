@@ -26,12 +26,11 @@
 #ifndef DISRUPTOR_WAITSTRATEGY_H_  // NOLINT
 #define DISRUPTOR_WAITSTRATEGY_H_  // NOLINT
 
-#include <sys/time.h>
-
 #include <chrono>
 #include <thread>
 #include <vector>
 
+#include "time_helper.h"
 #include "disruptor/exceptions.h"
 #include "disruptor/interface.h"
 #include "disruptor/sequence.h"
@@ -94,15 +93,14 @@ class BlockingStrategy :  public WaitStrategyInterface {
                             const Sequence& cursor,
                             const SequenceBarrierInterface& barrier,
                             const int64_t& sequence,
-                            const int64_t& timeout_micros) {
+                            const std::chrono::system_clock::duration& timeout) {
         int64_t available_sequence = 0;
         // We have to wait
         if ((available_sequence = cursor.sequence()) < sequence) {
             std::unique_lock<std::recursive_mutex> ulock(mutex_);
             while ((available_sequence = cursor.sequence()) < sequence) {
                 barrier.CheckAlert();
-                if (std::cv_status::timeout == consumer_notify_condition_.wait_for(ulock,
-                    std::chrono::microseconds(timeout_micros)))
+                if (std::cv_status::timeout == consumer_notify_condition_.wait_for(ulock,timeout))
                     break;
 
             }
@@ -160,11 +158,9 @@ class SleepingStrategy :  public WaitStrategyInterface {
                             const Sequence& cursor,
                             const SequenceBarrierInterface& barrier,
                             const int64_t& sequence,
-                            const int64_t& timeout_micros) {
+                            const WangXin::systp::duration& timeout) {
         // timing
-        struct timeval start_time, end_time;
-        gettimeofday(&start_time, NULL);
-        int64_t start_micro = start_time.tv_sec*1000000 + start_time.tv_usec;
+		auto start_time = std::chrono::system_clock::now();
 
         int64_t available_sequence = 0;
         int counter = kRetries;
@@ -172,18 +168,16 @@ class SleepingStrategy :  public WaitStrategyInterface {
         if (0 == dependents.size()) {
             while ((available_sequence = cursor.sequence()) < sequence) {
                 counter = ApplyWaitMethod(barrier, counter);
-                gettimeofday(&end_time, NULL);
-                int64_t end_micro = end_time.tv_sec*1000000 + end_time.tv_usec;
-                if (timeout_micros < (end_micro - start_micro))
+				auto end_time = std::chrono::system_clock::now();
+                if (timeout < (end_time - start_time))
                     break;
             }
         } else {
             while ((available_sequence = GetMinimumSequence(dependents)) < \
                     sequence) {
                 counter = ApplyWaitMethod(barrier, counter);
-                gettimeofday(&end_time, NULL);
-                int64_t end_micro = end_time.tv_sec*1000000 + end_time.tv_usec;
-                if (timeout_micros < (end_micro - start_micro))
+				auto end_time = std::chrono::system_clock::now();
+                if (timeout < (end_time - start_time))
                     break;
             }
         }
@@ -245,10 +239,8 @@ class YieldingStrategy :  public WaitStrategyInterface {
                             const Sequence& cursor,
                             const SequenceBarrierInterface& barrier,
                             const int64_t& sequence,
-                            const int64_t& timeout_micros) {
-        struct timeval start_time, end_time;
-        gettimeofday(&start_time, NULL);
-        int64_t start_micro = start_time.tv_sec*1000000 + start_time.tv_usec;
+                            const WangXin::systp::duration& timeout) {
+		auto start_time = std::chrono::system_clock::now();
 
         int64_t available_sequence = 0;
         int counter = kSpinTries;
@@ -256,18 +248,16 @@ class YieldingStrategy :  public WaitStrategyInterface {
         if (0 == dependents.size()) {
             while ((available_sequence = cursor.sequence()) < sequence) {
                 counter = ApplyWaitMethod(barrier, counter);
-                gettimeofday(&end_time, NULL);
-                int64_t end_micro = end_time.tv_sec*1000000 + end_time.tv_usec;
-                if (timeout_micros < (end_micro - start_micro))
+				auto end_time = std::chrono::system_clock::now();
+                if (timeout < (end_time - start_time))
                     break;
             }
         } else {
             while ((available_sequence = GetMinimumSequence(dependents)) < \
                     sequence) {
                 counter = ApplyWaitMethod(barrier, counter);
-                gettimeofday(&end_time, NULL);
-                int64_t end_micro = end_time.tv_sec*1000000 + end_time.tv_usec;
-                if (timeout_micros < (end_micro - start_micro))
+				auto end_time = std::chrono::system_clock::now();
+                if (timeout < (end_time - start_time))
                     break;
             }
         }
@@ -327,28 +317,24 @@ class BusySpinStrategy :  public WaitStrategyInterface {
                             const Sequence& cursor,
                             const SequenceBarrierInterface& barrier,
                             const int64_t& sequence,
-                            const int64_t& timeout_micros) {
-        struct timeval start_time, end_time;
-        gettimeofday(&start_time, NULL);
-        int64_t start_micro = start_time.tv_sec*1000000 + start_time.tv_usec;
+                            const WangXin::systp::duration& timeout) {
+		auto start_time = std::chrono::system_clock::now();
         int64_t available_sequence = 0;
 
         if (0 == dependents.size()) {
             while ((available_sequence = cursor.sequence()) < sequence) {
                 barrier.CheckAlert();
-                gettimeofday(&end_time, NULL);
-                int64_t end_micro = end_time.tv_sec*1000000 + end_time.tv_usec;
-                if (timeout_micros < (end_micro - start_micro))
+                auto end_time = std::chrono::system_clock::now();
+                if (timeout < (end_time - start_time))
                     break;
             }
         } else {
             while ((available_sequence = GetMinimumSequence(dependents)) < \
                     sequence) {
                 barrier.CheckAlert();
-                gettimeofday(&end_time, NULL);
-                int64_t end_micro = end_time.tv_sec*1000000 + end_time.tv_usec;
-                if (timeout_micros < (end_micro - start_micro))
-                    break;
+				auto end_time = std::chrono::system_clock::now();
+				if (timeout < (end_time - start_time))
+					break;
             }
         }
 
