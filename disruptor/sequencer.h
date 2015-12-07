@@ -112,7 +112,7 @@ class Sequencer {
     // Claim the next event in sequence for publishing to the {@link RingBuffer}.
     //
     // @return the claimed sequence.
-    int64_t Next() {
+    int64_t Claim() {
         return claim_strategy_->IncrementAndGet(gating_sequences_);
     }
 
@@ -120,7 +120,7 @@ class Sequencer {
     //
     // @param batch_descriptor to be updated for the batch range.
     // @return the updated batch_descriptor.
-    BatchDescriptor* Next(BatchDescriptor* batch_descriptor) {
+    BatchDescriptor* Claim(BatchDescriptor* batch_descriptor) {
         int64_t sequence = claim_strategy_->IncrementAndGet(batch_descriptor->size(), gating_sequences_);
         batch_descriptor->set_end(sequence);
         return batch_descriptor;
@@ -139,7 +139,7 @@ class Sequencer {
     //
     // @param sequence to be published.
     void Publish(const int64_t& sequence) {
-        Publish(sequence, 1);
+        Publish(sequence, 1LL);
     }
 
     // Publish the batch of events in sequence.

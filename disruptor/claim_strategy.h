@@ -106,18 +106,17 @@ class SingleThreadedStrategy :  public ClaimStrategyInterface {
 
 // Strategy to be used when there are multiple publisher threads claiming
 // {@link AbstractEvent}s.
-/*
+
 class MultiThreadedStrategy :  public ClaimStrategyInterface {
  public:
     MultiThreadedStrategy(const int& buffer_size) :
         buffer_size_(buffer_size),
-        sequence_(kInitialCursorValue),
-        min_processor_sequence_(kInitialCursorValue) {}
+        sequence_(kInitialCursorValue) {}
 
     virtual int64_t IncrementAndGet(
             const std::vector<Sequence*>& dependent_sequences) {
         WaitForCapacity(dependent_sequences, min_gating_sequence_local_);
-        int64_t next_sequence = sequence_.IncrementAndGet();
+        int64_t next_sequence = sequence_.IncrementAndGet(1);
         WaitForFreeSlotAt(next_sequence,
                           dependent_sequences,
                           min_gating_sequence_local_);
@@ -152,9 +151,9 @@ class MultiThreadedStrategy :  public ClaimStrategyInterface {
         return true;
     }
 
-    virtual void SerialisePublishing(const Sequence& cursor,
-                                     const int64_t& sequence,
-                                     const int64_t& batch_size) {
+    virtual void SerialisePublishing(const int64_t& sequence,
+									const Sequence& cursor,
+        		                    const int64_t& batch_size) {
         int64_t expected_sequence = sequence - batch_size;
         int counter = retries;
 
@@ -169,7 +168,7 @@ class MultiThreadedStrategy :  public ClaimStrategyInterface {
  private:
     // Methods
     void WaitForCapacity(const std::vector<Sequence*>& dependent_sequences,
-                         const MutableLong& min_gating_sequence) {
+                         MutableLong& min_gating_sequence) {
         const int64_t wrap_point = sequence_.sequence() + 1L - buffer_size_;
         if (wrap_point > min_gating_sequence.sequence()) {
             int counter = retries;
@@ -183,7 +182,7 @@ class MultiThreadedStrategy :  public ClaimStrategyInterface {
 
     void WaitForFreeSlotAt(const int64_t& sequence,
                            const std::vector<Sequence*>& dependent_sequences,
-                           const MutableLong& min_gating_sequence) {
+                           MutableLong& min_gating_sequence) {
         const int64_t wrap_point = sequence - buffer_size_;
         if (wrap_point > min_gating_sequence.sequence()) {
             int64_t min_sequence;
@@ -207,21 +206,22 @@ class MultiThreadedStrategy :  public ClaimStrategyInterface {
 
     const int buffer_size_;
     PaddedSequence sequence_;
-    thread_local PaddedLong min_gating_sequence_local_;
+    static thread_local PaddedLong min_gating_sequence_local_;
 
     const int retries = 100;
 
     DISALLOW_COPY_AND_ASSIGN(MultiThreadedStrategy);
 };
-*/
+
+thread_local PaddedLong MultiThreadedStrategy::min_gating_sequence_local_ = kInitialCursorValue;
 
 ClaimStrategyInterface* CreateClaimStrategy(ClaimStrategyOption option,
                                             const int& buffer_size) {
     switch (option) {
         case kSingleThreadedStrategy:
             return new SingleThreadedStrategy(buffer_size);
-        // case kMultiThreadedStrategy:
-        //     return new MultiThreadedStrategy(buffer_size);
+         case kMultiThreadedStrategy:
+             return new MultiThreadedStrategy(buffer_size);
         default:
             return NULL;
     }
